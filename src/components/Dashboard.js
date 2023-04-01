@@ -7,6 +7,9 @@ import Panel from "components/Panel";
 
 import axios from "axios";
 
+import { setInterview } from "helpers/reducers";
+
+
 import {
   getTotalInterviews,
   getLeastPopularTimeSlot,
@@ -52,12 +55,26 @@ class Dashboard extends Component {
       focused: previousState.focused !== null ? null : id
     }));
   };
+
   componentDidMount() {
     const focused = JSON.parse(localStorage.getItem("focused"));
 
     if (focused) {
       this.setState({ focused });
     }
+
+    this.socket = new WebSocket(process.env.REACT_APP_WEBSOCKET_URL);
+    this.socket.onmessage = event => {
+      const data = JSON.parse(event.data);
+
+      if (typeof data === "object" && data.type === "SET_INTERVIEW") {
+        this.setState(previousState =>
+          setInterview(previousState, data.id, data.interview)
+        );
+      }
+    };
+
+
     Promise.all([
       axios.get("/api/days"),
       axios.get("/api/appointments"),
@@ -70,6 +87,10 @@ class Dashboard extends Component {
         interviewers: interviewers.data
       });
     });
+  }
+
+  componentWillUnmount() {
+    this.socket.close();
   }
 
   componentDidUpdate(previousProps, previousState) {
